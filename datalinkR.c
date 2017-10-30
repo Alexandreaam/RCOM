@@ -21,17 +21,32 @@
 #define C_UA 0x07
 #define C_RR 0x04
 #define C_REJ 0x05
-#define C_DISC 0x77
 #define ESC 0x7d
 #define ESCSTF 0x5d
 #define FLAGSTF 0x5e
+
+
+#define C_RR_0 0x05
+#define C_RR_1  0x85
+#define C_REJ_0  0x01
+#define C_REJ_1  0x81
+#define C_DISC 0x0B
+#define C_0 0x00
+#define C_1 0x40
+ 
 
 unsigned char UA[5] = {FLAG, A, C_UA, A^C_UA, FLAG};;
 unsigned char RR[5] = {FLAG, A, C_RR, A^C_RR, FLAG};
 unsigned char REJ[5] = {FLAG, A, C_REJ, A^C_REJ, FLAG};
 unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
 
+unsigned char RR_0[5] = {FLAG, A, C_RR_0, A^C_RR_0, FLAG};
+unsigned char RR_1[5] = {FLAG, A, C_RR_1, A^C_RR_1, FLAG};
+unsigned char REJ_0[5] = {FLAG, A, C_REJ_0, A^C_REJ_0, FLAG};
+unsigned char REJ_1[5] = {FLAG, A, C_REJ_1, A^C_REJ_1, FLAG};
+
 volatile int STOP=FALSE;
+int Seq = 0;
 
 
 
@@ -147,6 +162,14 @@ printf("state %d\n", *state);
 					aux[2] = C_SET;
 					*state = 3;
 				}
+				else if(value == C_0){
+					aux[2] = C_0;
+					*state = 3;
+				}
+				else if(value == C_1){
+					aux[2] = C_1;
+					*state = 3;
+				}
 				else if(value == C_DISC){
 					aux[2] = C_DISC;
 					*state = 5;
@@ -161,6 +184,14 @@ printf("state %d\n", *state);
 				}
 				else if(value == A^C_SET){
 					aux[3] = A^C_SET;
+					*state = 4;
+				}
+				else if(value == A^C_0){
+					aux[3] = A^C_0;
+					*state = 4;
+				}
+				else if(value == A^C_1){
+					aux[3] = A^C_1;
 					*state = 4;
 				}
 				else
@@ -257,7 +288,7 @@ int llopen(int fd, int res){
 	}
 }*/
 
-int llread(int fd, char *data, int* size, int* nseq){
+int llread(int fd, char *data, int* size){
 
     unsigned char receive[1];
 
@@ -314,29 +345,51 @@ int llread(int fd, char *data, int* size, int* nseq){
         BCC2^=aux[j];
    }
 	printf("bcc %x\n",BCC2);
-	if(*nseq!=2){
-		if(*nseq!=data[5])
-			*nseq = data[5];
-		else{
-			printf("Sent REJ: \n");
-		    int bytes = write(fd,REJ,5);
-			return -1;
-		}
-	}
+	
+		
    if(BCC2 == aux[length-2]) {
 		for(j=4;j<length-2;j++){
 			data[j-4]=aux[j];	
 		}
 		*size = j-4;
-		
+			printf("Recebi : %x \n", data[0]);
+			if(data[0]!=0x01)
+				return 0;
+			
 			printf("Recebi : %d bytes\n", *size-4);
-        	printf("Sent RR: \n");
-        	int bytes = write(fd,RR,5);
+			printf("Recebi C: %x\n", aux[2]);
+			if(aux[2]==C_0 && Seq==0){
+        		write(fd,RR_1,5);
+				Seq = 1;
+				printf("Sent RR_1: \n");
+			}
+			else if(aux[2]==C_1 && Seq==1){
+				write(fd,RR_0,5);
+				Seq = 0;
+				printf("Sent RR_0: \n");
+			}
+			else if(aux[2]==C_0 && Seq==1){
+				write(fd,REJ_1,5);
+				printf("Sent REJ_1: \n");
+				return -1;
+			}
+			else if(aux[2]==C_1 && Seq==0){
+				write(fd,REJ_0,5);
+				printf("Sent REJ_0: \n");
+				return -1;
+			}
 		
     }
     else {
-        printf("Sent REJ: \n");
-        int bytes = write(fd,REJ,5);
+        printf("Error BBC2: \n");
+		if(Seq==1){
+				write(fd,REJ_1,5);
+				printf("Sent REJ_1: \n");
+		}
+		else if(Seq==0){
+			write(fd,REJ_0,5);
+			printf("Sent REJ_0: \n");
+		}
 		return -1;
     }
     return 0;
@@ -346,8 +399,7 @@ int readControlPkg(int fd, char* fileName, int* fileSize, int* pathSize){
 	printf("Receiving control pkg....\n");
 	int sizeControlPkg=0,i=0,j=0;
 	unsigned char controlPkg[255];
-	int control = 2;
-	int llreadVal = llread(fd,&controlPkg,&sizeControlPkg,&control);
+	int llreadVal = llread(fd,&controlPkg,&sizeControlPkg);
 	if(llreadVal==-1){
 	  printf("Error no read");
 	  return -1;
@@ -499,7 +551,7 @@ int main(int argc, char** argv)
 	//RECEIVE DATA
 	while(1){
 		printf("\nTrama n %d\n", ++k);
-		int llreadVal = llread(fd,&temp,&size,&nseq);
+		int llreadVal = llread(fd,&temp,&size);
 		if(llreadVal==0){
 			for(i=4;i<size;i++){
 				//data[num_read]=temp[i];
