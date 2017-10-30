@@ -21,7 +21,13 @@
 #define C_UA 0x07
 #define C_RR 0x04
 #define C_REJ 0x05
-#define C_DISC 0x77
+#define C_RR_0 0x05
+#define C_RR_1 0x85
+#define C_REJ_0 0x01
+#define C_REJ_1 0x81
+#define C_DISC 0x0B
+#define C_0 0x00
+#define C_1 0x40
 #define ESC 0x7d
 #define ESCSTF 0x5d
 #define FLAGSTF 0x5e
@@ -32,11 +38,17 @@ unsigned char UA[5] = {FLAG, A, C_UA, A^C_UA, FLAG};
 unsigned char RR[5] = {FLAG, A, C_RR, A^C_RR, FLAG};
 unsigned char REJ[5] = {FLAG, A, C_REJ, A^C_REJ, FLAG};
 unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
-
+unsigned char RR_0[5] = {FLAG, A, C_RR_0, A^C_RR_0, FLAG};
+unsigned char RR_1[5] = {FLAG, A, C_RR_1, A^C_RR_1, FLAG};
+unsigned char REJ_0[5] = {FLAG, A, C_REJ_0, A^C_REJ_0, FLAG};
+unsigned char REJ_1[5] = {FLAG, A, C_REJ_1, A^C_REJ_1, FLAG};
 volatile int STOP=FALSE;
 
+int Seq=0, alarm_counter=0;
 int flag_alarm = 0;
-int stateMachine(char *aux, char value, int *state){
+int stateMachine(char *aux, unsigned char value, int *state){
+	printf("State: %d\n", *state);
+	printf("Value: %x\n", value);
 	switch(*state){
 		case 0:
 		if(value == FLAG){
@@ -71,12 +83,20 @@ int stateMachine(char *aux, char value, int *state){
 			aux[2] = C_SET;
 			*state = 6;
 		}
-		else if(value == C_RR){
-			aux[2] = C_RR;
+		else if(value == C_RR_0){
+			aux[2] = C_RR_0;
 			*state = 12;
 		}
-		else if(value == C_REJ){
-        	aux[2] = C_REJ;
+		else if(value == C_RR_1){
+			aux[2] = C_RR_1;
+			*state = 12;
+		}
+		else if(value == C_REJ_0){
+        	aux[2] = C_REJ_0;
+        	*state = 15;
+        }
+		else if(value == C_REJ_1){
+        	aux[2] = C_REJ_1;
         	*state = 15;
         }
 		else if(value == C_DISC){
@@ -158,8 +178,12 @@ int stateMachine(char *aux, char value, int *state){
 			aux[0] = FLAG;
 			*state = 1;
 		}
-		else if(value == A^C_RR){
-			aux[3] = A^C_RR;
+		else if(value == A^C_RR_0){
+			aux[3] = A^C_RR_0;
+			*state = 13;
+		}
+		else if(value == A^C_RR_1){
+			aux[3] = A^C_RR_1;
 			*state = 13;
 		}
 		else
@@ -181,8 +205,12 @@ int stateMachine(char *aux, char value, int *state){
 			aux[0] = FLAG;
 			*state = 1;
 		}
-		else if(value == A^C_REJ){
-			aux[3] = A^C_REJ;
+		else if(value == A^C_REJ_0){
+			aux[3] = A^C_REJ_0;
+			*state = 16;
+		}
+		else if(value == A^C_REJ_1){
+			aux[3] = A^C_REJ_1;
 			*state = 16;
 		}
 		else
@@ -239,8 +267,14 @@ int llwrite(int fd, unsigned char* buffer, int length){
     unsigned char trama[255];
     trama[0] = FLAG;
     trama[1] = A;
-    trama[2] = C_SET;
-    trama[3] = A^C_SET;
+	if(Seq==0){
+		trama[2] = C_0;
+    	trama[3] = A^C_0;
+	}
+	else{ 
+		trama[2] = C_1;
+    	trama[3] = A^C_0;
+	}
     unsigned char BCC2=0;
     for(i=0;i<length-1;i++)
     {
@@ -294,7 +328,7 @@ int llwrite(int fd, unsigned char* buffer, int length){
 int sendCtrlPckg(int fd, int ctrl_field, char* filepath, int filesize) {
 	int i, j=3;	
 	unsigned char file_size[16] = {};
-	snprintf(file_size, 20000, "%d", filesize);
+	snprintf(file_size, 30000, "%d", filesize);
 	
 	printf("Filepath: %s\nFilepath size: %d\nFilesize: %d\n", filepath, strlen(filepath), strlen(file_size));
 	int pckg_size = 6 + strlen(filepath) + strlen(file_size);
@@ -331,8 +365,8 @@ int sendCtrlPckg(int fd, int ctrl_field, char* filepath, int filesize) {
 
 int sendDataPckg(int fd, int seq_nr, char* buffer, int buffer_size) {
 	unsigned char package[buffer_size + 4];
-	package[0] = 1 + '0';
-	package[1] = seq_nr + '0';
+	package[0] = 0x01;
+	package[1] = seq_nr;
 	package[2] = (buffer_size / 256) + '0';
 	package[3] = (buffer_size % 256) + '0';
 	int i;
@@ -353,6 +387,7 @@ int sendDataPckg(int fd, int seq_nr, char* buffer, int buffer_size) {
 
 void atende() {
 	flag_alarm = 1;
+	alarm_counter++;
 }
 
 int llopen(int fd,int res){
@@ -414,28 +449,52 @@ int llread(int fd, char * buffer)
 		
 		STOP = stateMachine(aux, receive[0], &state);
 		if(flag_alarm == 1){
-			return -1;
+			return -3;
 		}
 		llincrem++;
 	}
 	printf("done\n\n");
 
     if(state == 14) {
-	    int j=0;
-	    printf("RECEIVED RR: ");
+		if(aux[2]==C_RR_0){
+		int j=0;
+	  /*  printf("RECEIVED RR_0: ");
 	    while(j < 5) {
 		    printf("%x", aux[j]);
 		    j++;
-	    }
+	    }*/
+		return 1;
+}
+		else if(aux[2]==C_RR_1){
+		int j=0;
+	   /* printf("RECEIVED RR_1: ");
+	    while(j < 5) {
+		    printf("%x", aux[j]);
+		    j++;
+	    }*/
+		return 2;
+}
+	    
     }
     else if(state == 17) {
-        int j=0;
-        printf("RECEIVED REJ: ");
+		if(aux[2]==C_REJ_0){
+		int j=0;
+      /*  printf("RECEIVED REJ_0: ");
         while(j < 5) {
             printf("%x", aux[j]);
             j++;
-        }
+        }*/
 		return -1;
+}
+		if(aux[2]==C_REJ_1){
+        int j=0;
+       /* printf("RECEIVED REJ_1: ");
+        while(j < 5) {
+            printf("%x", aux[j]);
+            j++;
+        }*/
+		return -2;
+		}
     }
     else printf("FAILED TO RECEIVE PROPER TRAMA\n");
 
@@ -457,7 +516,7 @@ int llclose(int fd) {
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
 
-		printf("\nRead DISC n%d\nreceive = %x\n", increm, receive[0]);
+		//printf("\nRead DISC n%d\nreceive = %x\n", increm, receive[0]);
 
 		STOP = stateMachine(aux, receive[0], &state);
 		increm++;
@@ -530,9 +589,6 @@ int main(int argc, char** argv)
 
 	//-----------------------------------// 
 	signal(SIGALRM, atende);
-	/*if(llopen()==-1){
-      printf("Error establishing connection...");
-    }*/
 
     if(llopen(fd,res)==-1){
       printf("Error establishing connection...");
@@ -570,42 +626,75 @@ int main(int argc, char** argv)
 	int bytes_read, bytes_total, seq_nr = 0;
 	unsigned char* buffer = malloc(pckgsize * sizeof(char));
 	int read_value = 0;
-	int k=0, offset=0, exitc=0, n=0;
+	int k=1, offset=0, exitc=0, n=0, n_counter=0;
+	printf("\nSeq antes While: %d\n", Seq);
 	while(1) {
-		printf("Trama n: %d \n", ++k);
-		if(read_value==0){
+		printf("Trama n: %d \n", k);
+		if(read_value>0){
 			bytes_read = fread(buffer, sizeof(char), pckgsize, file);
 			offset += bytes_read;
 			fseek(file, offset, SEEK_SET);
 			for(n=0; n < bytes_read; n++) {
-				printf("Buffer: %c\n", buffer[n]);
+				//printf("Buffer: %x\n", buffer[n]);
 			}	
 			printf("Bytes read: %d\n", bytes_read);
 			if(bytes_read <= 0) break;
 		}
 		
 		alarm(3);
-		int datapckg_value = sendDataPckg(fd, seq_nr, buffer, bytes_read);
+
+		if(n_counter==255){
+			n_counter=0;
+		}
+		int datapckg_value = sendDataPckg(fd, 0, buffer, bytes_read);
+		n_counter++; 
 		int dp;		
-		printf("Trama enviada: ");
+		/*printf("Trama enviada: ");
 		for(dp=0; dp < bytes_read; dp++) {
 			printf("%c", buffer[dp]);
-		}
+		}*/
 		printf("\n");
 
 		char* temp_buf;
 		read_value = llread(fd, temp_buf);
-
-		if(read_value == 0) {
-			if(seq_nr == 0) seq_nr = 1;
-			else if(seq_nr == 1) seq_nr = 0;
-		} 
-		else{
+		if(read_value == 1 && Seq == 1) { //recebeu RR_0
+			printf("Received RR_0\n");
+			k++;
+			alarm_counter=0;		
+			Seq = 0;		
+		}
+		else if(read_value == 2 && Seq == 0) { //recebeu RR_1
+			printf("Received RR_1\n");
+			k++;	
+			alarm_counter=0;	
+			Seq = 1;	
+		}
+		/*else if(read_value < 0 && read_value !=-3) { //recebeu REJ_0 ou REJ_1	
+			printf("Received REJ_0 ou REJ_1\n");
+			k++;
+			alarm_counter=0;				
+		}*/
+		else if(read_value == -1 && Seq == 1) { //recebeu REJ_0	
+			printf("Received REJ_0\n");
+			k++;
+			alarm_counter=0;
+			Seq = 0;	
+			read_value = 1;			
+		}
+		else if(read_value == -2 && Seq == 0) { //recebeu REJ_1
+			printf("Received REJ_1\n");
+			k++;
+			alarm_counter=0;	
+			Seq = 1;	
+			read_value = 1;					
+		}
+		else if(read_value == -3){
 			flag_alarm = 0;
-			printf("Disparou alarme e re-enviei\n");
+			printf("Disparou alarme e re-enviei (%d)\n", alarm_counter);
 		}
 		printf("\nOffset: %d\n", offset);
 		if(offset > filesize) break;
+		if(alarm_counter == 4) return 0;
 	}
 
 
