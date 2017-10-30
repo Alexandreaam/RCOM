@@ -328,7 +328,7 @@ int llwrite(int fd, unsigned char* buffer, int length){
 int sendCtrlPckg(int fd, int ctrl_field, char* filepath, int filesize) {
 	int i, j=3;	
 	unsigned char file_size[16] = {};
-	snprintf(file_size, 30000, "%d", filesize);
+	snprintf(file_size, 20000, "%d", filesize);
 	
 	printf("Filepath: %s\nFilepath size: %d\nFilesize: %d\n", filepath, strlen(filepath), strlen(file_size));
 	int pckg_size = 6 + strlen(filepath) + strlen(file_size);
