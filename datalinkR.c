@@ -17,6 +17,7 @@
 
 #define FLAG 0x7e
 #define A 0x03
+#define A_DISC 0x01
 #define C_SET 0x03
 #define C_UA 0x07
 #define C_RR 0x04
@@ -38,7 +39,8 @@
 unsigned char UA[5] = {FLAG, A, C_UA, A^C_UA, FLAG};;
 unsigned char RR[5] = {FLAG, A, C_RR, A^C_RR, FLAG};
 unsigned char REJ[5] = {FLAG, A, C_REJ, A^C_REJ, FLAG};
-unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
+//unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
+unsigned char DISC[5] = {FLAG, A_DISC, C_DISC, A_DISC^C_DISC, FLAG};
 
 unsigned char RR_0[5] = {FLAG, A, C_RR_0, A^C_RR_0, FLAG};
 unsigned char RR_1[5] = {FLAG, A, C_RR_1, A^C_RR_1, FLAG};
@@ -150,6 +152,10 @@ printf("state %d\n", *state);
 					aux[1] = A;
 					*state = 2;
 				}
+				else if(value == A_DISC){
+					aux[1] = A;
+					*state = 2;
+				}
 				else
 					*state = 0;	
 				break;
@@ -213,6 +219,10 @@ printf("state %d\n", *state);
 					aux[3] = A^C_DISC;
 					*state = 6;
 				}
+				else if(value == A_DISC^C_DISC){
+					aux[3] = A_DISC^C_DISC;
+					*state = 6;
+				}
 				else
 					*state = 0;	
 				break;
@@ -268,26 +278,6 @@ int llopen(int fd, int res){
 	return value;
 }
 
-/*int llread(int fd, char *data, int* size){
-
-	unsigned char receive[1];
-
-	int state=0;
-	unsigned char aux[255];
-	int j=0, i=0;
-	int res;
-
-    int length = 0;
-	STOP = FALSE;
-	while(STOP == FALSE) {
-		res = read(fd,receive,1);
-		printf("%x\n", receive[0]);
-		STOP = stateMachineRe(aux, receive[0], &state);
-		aux[length]=receive[0];
-		length++;
-	}
-}*/
-
 int llread(int fd, char *data, int* size){
 
     unsigned char receive[1];
@@ -312,6 +302,16 @@ int llread(int fd, char *data, int* size){
 
 	if(state==6) return 2;
 
+	if(aux[2]==C_0 && Seq==1){
+		write(fd,RR_1,5);
+		printf("Emissor failed to receive previous Ack. ReSent RR_1: \n");
+		return 3;
+	}
+	else if(aux[2]==C_1 && Seq==0){
+		write(fd,RR_0,5);
+		printf("Emissor failed to receive previous Ack. ReSent RR_0: \n");
+		return 3;
+	}
 
 	int x;
 	j = 0;
@@ -359,26 +359,14 @@ int llread(int fd, char *data, int* size){
 			printf("Recebi : %d bytes\n", *size-4);
 			printf("Recebi C: %x\n", aux[2]);
 			if(aux[2]==C_0 && Seq==0){
-        		write(fd,RR_1,5);
-				Seq = 1;
+        			write(fd,RR_1,5);
 				printf("Sent RR_1: \n");
 			}
 			else if(aux[2]==C_1 && Seq==1){
 				write(fd,RR_0,5);
-				Seq = 0;
 				printf("Sent RR_0: \n");
 			}
-			else if(aux[2]==C_0 && Seq==1){
-				write(fd,REJ_1,5);
-				printf("Sent REJ_1: \n");
-				return -1;
-			}
-			else if(aux[2]==C_1 && Seq==0){
-				write(fd,REJ_0,5);
-				printf("Sent REJ_0: \n");
-				return -1;
-			}
-		
+	   		Seq = 1 - Seq;
     }
     else {
         printf("Error BBC2: \n");

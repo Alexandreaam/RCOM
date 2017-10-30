@@ -17,6 +17,7 @@
 
 #define FLAG 0x7e
 #define A 0x03
+#define A_DISC 0x01
 #define C_SET 0x03
 #define C_UA 0x07
 #define C_RR 0x04
@@ -37,7 +38,9 @@ unsigned char SET[5] = {FLAG, A, C_SET, A^C_SET, FLAG};
 unsigned char UA[5] = {FLAG, A, C_UA, A^C_UA, FLAG};
 unsigned char RR[5] = {FLAG, A, C_RR, A^C_RR, FLAG};
 unsigned char REJ[5] = {FLAG, A, C_REJ, A^C_REJ, FLAG};
-unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
+//unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
+unsigned char DISC[5] = {FLAG, A_DISC, C_DISC, A_DISC^C_DISC, FLAG};
+
 unsigned char RR_0[5] = {FLAG, A, C_RR_0, A^C_RR_0, FLAG};
 unsigned char RR_1[5] = {FLAG, A, C_RR_1, A^C_RR_1, FLAG};
 unsigned char REJ_0[5] = {FLAG, A, C_REJ_0, A^C_REJ_0, FLAG};
@@ -63,6 +66,10 @@ int stateMachine(char *aux, unsigned char value, int *state){
 			*state = 1;
 		}
 		else if(value == A){
+			aux[1] = A;
+			*state = 2;
+		}
+		else if(value == A_DISC){
 			aux[1] = A;
 			*state = 2;
 		}
@@ -160,6 +167,10 @@ int stateMachine(char *aux, unsigned char value, int *state){
 		}
 		else if(value == A^C_DISC){
 			aux[3] = A^C_DISC;
+			*state = 10;
+		}
+		else if(value == A_DISC^C_DISC){
+			aux[3] = A_DISC^C_DISC;
 			*state = 10;
 		}
 		break;
@@ -669,12 +680,12 @@ int main(int argc, char** argv)
 			alarm_counter=0;	
 			Seq = 1;	
 		}
-		/*else if(read_value < 0 && read_value !=-3) { //recebeu REJ_0 ou REJ_1	
+		else if(read_value < 0 && read_value !=-3) { //recebeu REJ_0 ou REJ_1	
 			printf("Received REJ_0 ou REJ_1\n");
 			k++;
 			alarm_counter=0;				
-		}*/
-		else if(read_value == -1 && Seq == 1) { //recebeu REJ_0	
+		}
+		/*else if(read_value == -1 && Seq == 1) { //recebeu REJ_0	
 			printf("Received REJ_0\n");
 			k++;
 			alarm_counter=0;
@@ -687,7 +698,7 @@ int main(int argc, char** argv)
 			alarm_counter=0;	
 			Seq = 1;	
 			read_value = 1;					
-		}
+		}*/
 		else if(read_value == -3){
 			flag_alarm = 0;
 			printf("Disparou alarme e re-enviei (%d)\n", alarm_counter);
