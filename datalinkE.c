@@ -50,8 +50,8 @@ volatile int STOP=FALSE;
 int Seq=0, alarm_counter=0;
 int flag_alarm = 0;
 int stateMachine(char *aux, unsigned char value, int *state){
-	printf("State: %d\n", *state);
-	printf("Value: %x\n", value);
+	//printf("State: %d\n", *state);
+	//printf("Value: %x\n", value);
 	switch(*state){
 		case 0:
 		if(value == FLAG){
@@ -70,7 +70,7 @@ int stateMachine(char *aux, unsigned char value, int *state){
 			*state = 2;
 		}
 		else if(value == A_DISC){
-			aux[1] = A;
+			aux[1] = A_DISC;
 			*state = 2;
 		}
 		else
@@ -291,6 +291,7 @@ int llwrite(int fd, unsigned char* buffer, int length){
     {
    	 BCC2^=buffer[i];
     }
+	//printf("BCC2: %x", BCC2);
     trama[length+4] = BCC2;
     trama[length+5] = FLAG;
 
@@ -307,7 +308,7 @@ int llwrite(int fd, unsigned char* buffer, int length){
     FLAGPOS = length+5;
     while(1)
     {
-        if(j==FLAGPOS-1) break;
+        if(j==FLAGPOS) break;
         else if(trama[j]==FLAG) {
 	        trama[j]=ESC;
 			tramastf(trama, j+1, FLAGSTF);
@@ -344,8 +345,9 @@ int sendCtrlPckg(int fd, int ctrl_field, char* filepath, int filesize) {
 	printf("Filepath: %s\nFilepath size: %d\nFilesize: %d\n", filepath, strlen(filepath), strlen(file_size));
 	int pckg_size = 6 + strlen(filepath) + strlen(file_size);
 	unsigned char ctrl_pckg[pckg_size];
+	unsigned char hex;
 
-	ctrl_pckg[0] = 0x02;
+	ctrl_pckg[0] = ctrl_field;
 	ctrl_pckg[1] = 0x00; // FILE SIZE PARAM
 	ctrl_pckg[2] = (char)strlen(file_size);
 
@@ -421,10 +423,7 @@ int llopen(int fd,int res){
 		//printf("\nRead n%d\nreceive = %x\n", increm, receive[0]);
 		STOP = stateMachine(aux, receive[0], &state);
 		if(flag_alarm == 1){
-			flag_alarm = 0;
-			i = write(fd, SET, 5);
-			printf("Disparou alarme e re-enviei\n");
-			alarm(3);
+			return -3;
 		}
 		increm++;
 	}
@@ -527,7 +526,7 @@ int llclose(int fd) {
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
 
-		//printf("\nRead DISC n%d\nreceive = %x\n", increm, receive[0]);
+		printf("\nRead DISC n%d\nreceive = %x\n", increm, receive[0]);
 
 		STOP = stateMachine(aux, receive[0], &state);
 		increm++;
@@ -601,9 +600,28 @@ int main(int argc, char** argv)
 	//-----------------------------------// 
 	signal(SIGALRM, atende);
 
-    if(llopen(fd,res)==-1){
-      printf("Error establishing connection...");
-    }
+	while(alarm_counter<4){
+		int llopenval = llopen(fd,res);
+		if(llopenval==-1){
+		  printf("Error establishing connection...");
+		} else if(llopenval==-3 && alarm_counter!=4){
+			flag_alarm = 0;
+			i = write(fd, SET, 5);
+			printf("Disparou alarme e re-enviei (%d)\n", alarm_counter);
+			alarm(3);
+		} else if(llopenval==0){
+			flag_alarm = 0;
+			alarm_counter = 0;
+			alarm(0);
+			break;
+		}
+		
+	}
+
+	if(alarm_counter==4){
+		printf("Error establishing connection (timeout)\n");
+		return -1;
+	}
 
 	/*
 	 * SEND (START) CTRL PACKAGE
@@ -637,7 +655,7 @@ int main(int argc, char** argv)
 	int bytes_read, bytes_total, seq_nr = 0;
 	unsigned char* buffer = malloc(pckgsize * sizeof(char));
 	int read_value = 0;
-	int k=1, offset=0, exitc=0, n=0, n_counter=0;
+	int k=1, offset=0, exitc=0, n=0, n_counter=1;
 	printf("\nSeq antes While: %d\n", Seq);
 	while(1) {
 		printf("Trama n: %d \n", k);
@@ -655,9 +673,9 @@ int main(int argc, char** argv)
 		alarm(3);
 
 		if(n_counter==255){
-			n_counter=0;
+			n_counter=1;
 		}
-		int datapckg_value = sendDataPckg(fd, 0, buffer, bytes_read);
+		int datapckg_value = sendDataPckg(fd, n_counter, buffer, bytes_read);
 		n_counter++; 
 		int dp;		
 		/*printf("Trama enviada: ");
@@ -706,6 +724,12 @@ int main(int argc, char** argv)
 		printf("\nOffset: %d\n", offset);
 		if(offset > filesize) break;
 		if(alarm_counter == 4) return 0;
+	}
+	
+	ctrlpckg_value = sendCtrlPckg(fd, 3, filepath, filesize);
+	if(ctrlpckg_value != 0) {
+		printf("Failed sending START control package\n");
+		return -1;
 	}
 
 
