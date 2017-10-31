@@ -52,7 +52,8 @@ int Seq = 0;
 
 
 
-int stateMachine(char *aux, char value, int *state){
+int stateMachine(char *aux, unsigned char value, int *state){
+//printf("state %d\n", *state);
 	switch(*state){
 			case 0:
 				if(value == FLAG){
@@ -135,7 +136,7 @@ int stateMachine(char *aux, char value, int *state){
 }
 
 int stateMachineRe(char *aux, char value, int *state){
-printf("state %d\n", *state);
+//printf("state %d\n", *state);
 	switch(*state){
 			case 0:
 				if(value == FLAG){
@@ -153,7 +154,7 @@ printf("state %d\n", *state);
 					*state = 2;
 				}
 				else if(value == A_DISC){
-					aux[1] = A;
+					aux[1] = A_DISC;
 					*state = 2;
 				}
 				else
@@ -208,7 +209,6 @@ printf("state %d\n", *state);
 					*state = 5;
 					return 1;
 				}
-				
 				break;
 			case 5:
 				if(value == FLAG){
@@ -292,15 +292,25 @@ int llread(int fd, char *data, int* size){
 	while(STOP == FALSE) {
 		if(state==0)
 			length=0;
+		printf("New:\n\n");
 		res = read(fd,receive,1);
-		printf("%x\n", receive[0]);
+		printf("Receive - %x\n", receive[0]);
 		STOP = stateMachineRe(aux, receive[0], &state);
+		printf("state %d\n", state);
+		printf("Length - %d\n", length);
 		aux[length]=receive[0];
+		for(j=0;j<length+1;j++){
+			printf("%x", aux[j]);
+		}
+		printf("\n");	
 		length++;
 	}
+	printf("state %d\n", state);
+	for(j=0;j<length;j++){
+		printf("value %x\n", aux[j]);
+	}	
 
-
-	if(state==6) return 2;
+	//if(state==6) return 2;
 
 	if(aux[2]==C_0 && Seq==1){
 		write(fd,RR_1,5);
@@ -348,6 +358,11 @@ int llread(int fd, char *data, int* size){
 	
 		
    if(BCC2 == aux[length-2]) {
+		if(aux[4]==0x03 && state==5){
+			printf("Receive trama (I) end\n");
+			return 2;
+		}
+
 		for(j=4;j<length-2;j++){
 			data[j-4]=aux[j];	
 		}
@@ -404,7 +419,7 @@ int readControlPkg(int fd, char* fileName, int* fileSize, int* pathSize){
 	*fileSize = atoi(sizeFile);
 
 	int sizePath = (int)(controlPkg[i+2]);
-	//printf("%d\n",(int)(controlPkg[i+2]));
+	printf("%d\n",(int)(controlPkg[i+2]));
 	*pathSize = sizePath;
 
 	printf("File size: %d\n", *fileSize);
@@ -423,16 +438,29 @@ int readControlPkg(int fd, char* fileName, int* fileSize, int* pathSize){
 }
 
 int llclose(int fd){
-	printf("Sent DISC: \n");
-    int bytes = write(fd,DISC,5);
 	
 	unsigned char receive[1];
 	int state=0;
 	unsigned char aux[255];
 	int j=0;
 	int res;
-
     int length = 0;
+	STOP = FALSE;
+
+	while(STOP == FALSE) {
+		res = read(fd,receive,1);
+		printf("%x\n", receive[0]);
+		STOP = stateMachineRe(aux, receive[0], &state);
+		aux[length]=receive[0];
+		length++;
+	}
+	
+	if(state==6){
+		printf("Sent DISC: \n");
+		int bytes = write(fd,DISC,5);
+		state = 0;
+	}
+	
 	STOP = FALSE;
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
@@ -520,16 +548,17 @@ int main(int argc, char** argv)
     int fileSize, pathSize=0;
     int readControlVal = readControlPkg(fd,&aux,&fileSize,&pathSize);
 	int j=0;
-	char filePath[pathSize];
-
+	unsigned char *filePath;
+	filePath = (char *) malloc(pathSize * sizeof(char));
 	for(j=0;j<pathSize;j++){
 		filePath[j]=aux[j];
 	}
 	
+	
 	//create file
 	char data[255],temp[255];
 	int num_read = 0,i = 0,size=0;
-	FILE *f = fopen(filePath, "w");
+	FILE *f = fopen(filePath, "wb");
 	if (f == NULL)
 	{
 		printf("Error opening file!\n");
@@ -555,11 +584,12 @@ int main(int argc, char** argv)
 		  //tcflush(fd, TCIOFLUSH);
 		  printf("Error no read");
 		} else if(llreadVal==2){
-			if(llclose(fd)==-1){
-		  		printf("Error no close");
-			}
-			else break;
+			printf("The file was sucessfully transfered!\n");
+			break;
 		}
+	}
+	if(llclose(fd)==-1){
+  		printf("Error no close");
 	}
 	fclose(f);	
 
