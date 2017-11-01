@@ -352,7 +352,6 @@ int llopen(int fd,int res){
 
 	printf("Waiting for UA...\n");
 	STOP = FALSE;
-	alarm(3);
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
 		//printf("\nRead n%d\nreceive = %x\n", increm, receive[0]);
@@ -457,13 +456,18 @@ int llclose(int fd) {
 	unsigned char aux[5];
 	unsigned char receive[5];
 	STOP = FALSE;
-	
+	alarm(3);
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
 
 		printf("\nRead DISC n%d\nreceive = %x\n", increm, receive[0]);
 
 		STOP = stateMachine(aux, receive[0], &state);
+
+		if(flag_alarm == 1){
+			return -3;
+		}		
+
 		increm++;
 	}
 

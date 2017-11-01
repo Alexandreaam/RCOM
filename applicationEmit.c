@@ -44,7 +44,7 @@ int sendCtrlPckg(int fd, int ctrl_field, char* filepath, int filesize) {
 		printf("Failed to write control package\n");
 		return -1;
 	}
-
+	printf("Sent Control Package");
 	return 0;
 }
 
@@ -136,19 +136,20 @@ int main(int argc, char** argv)
 	while(alarm_counter<4){
 		int llopenval = llopen(fd,res);
 		if(llopenval==-1){
-		  printf("Error establishing connection...");
-		} else if(llopenval==-3 && alarm_counter!=4){
+			printf("Error establishing connection...");
+		} 
+		else if(llopenval==-3 && alarm_counter!=4){
 			flag_alarm = 0;
-			i = write(fd, SET, 5);
+			//i = write(fd, SET, 5);
 			printf("Disparou alarme e re-enviei (%d)\n", alarm_counter);
 			alarm(3);
-		} else if(llopenval==0){
+		} 
+		else if(llopenval==0){
 			flag_alarm = 0;
 			alarm_counter = 0;
 			alarm(0);
 			break;
-		}
-		
+		}	
 	}
 
 	if(alarm_counter==4){
@@ -198,7 +199,7 @@ int main(int argc, char** argv)
 			offset += bytes_read;
 			fseek(file, offset, SEEK_SET);
 			for(n=0; n < bytes_read; n++) {
-				printf("Buffer: %x\n", buffer[n]);
+				//printf("Buffer: %x\n", buffer[n]);
 			}	
 			printf("Bytes read: %d\n", bytes_read);
 			if(bytes_read <= 0) break;
@@ -273,9 +274,24 @@ int main(int argc, char** argv)
       perror("tcsetattr");
       exit(-1);
     }
-
-
-	llclose(fd);
+	while(alarm_counter<4){
+		int llcloseval=llclose(fd);
+		if(llcloseval==-3){
+			printf("Error closing connection...");
+		} 
+		else if(llcloseval==-3 && alarm_counter!=4){
+			flag_alarm = 0;
+			printf("Disparou alarme e re-enviei DISC (%d)\n", alarm_counter);
+			alarm(3);
+		} 
+		else if(llcloseval==0){
+			flag_alarm = 0;
+			alarm_counter = 0;
+			alarm(0);
+			break;
+		}	
+	}
+	//llclose(fd);
 
     close(fd);
     return 0;
