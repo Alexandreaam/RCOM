@@ -288,23 +288,23 @@ int llread(int fd, char *data, int* size){
 	while(STOP == FALSE) {
 		if(state==0)
 			length=0;
-		printf("New:\n\n");
+		//printf("New:\n\n");
 		res = read(fd,receive,1);
-		printf("Receive - %x\n", receive[0]);
+		//printf("Receive - %x\n", receive[0]);
 		STOP = stateMachineRe(aux, receive[0], &state);
-		printf("state %d\n", state);
-		printf("Length - %d\n", length);
+		//printf("state %d\n", state);
+		//printf("Length - %d\n", length);
 		aux[length]=receive[0];
-		for(j=0;j<length+1;j++){
+		/*for(j=0;j<length+1;j++){
 			printf("%x", aux[j]);
-		}
-		printf("\n");	
+		}*/
+		//printf("\n");	
 		length++;
 	}
 	printf("state %d\n", state);
-	for(j=0;j<length;j++){
+	/*for(j=0;j<length;j++){
 		printf("value %x\n", aux[j]);
-	}	
+	}	*/
 
 	//if(state==6) return 2;
 
