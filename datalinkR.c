@@ -39,9 +39,7 @@
 unsigned char UA[5] = {FLAG, A, C_UA, A^C_UA, FLAG};;
 unsigned char RR[5] = {FLAG, A, C_RR, A^C_RR, FLAG};
 unsigned char REJ[5] = {FLAG, A, C_REJ, A^C_REJ, FLAG};
-//unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
 unsigned char DISC[5] = {FLAG, A_DISC, C_DISC, A_DISC^C_DISC, FLAG};
-
 unsigned char RR_0[5] = {FLAG, A, C_RR_0, A^C_RR_0, FLAG};
 unsigned char RR_1[5] = {FLAG, A, C_RR_1, A^C_RR_1, FLAG};
 unsigned char REJ_0[5] = {FLAG, A, C_REJ_0, A^C_REJ_0, FLAG};
