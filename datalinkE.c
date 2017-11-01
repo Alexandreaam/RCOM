@@ -1,5 +1,3 @@
-/*Non-Canonical Input Processing*/
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -38,9 +36,7 @@ unsigned char SET[5] = {FLAG, A, C_SET, A^C_SET, FLAG};
 unsigned char UA[5] = {FLAG, A, C_UA, A^C_UA, FLAG};
 unsigned char RR[5] = {FLAG, A, C_RR, A^C_RR, FLAG};
 unsigned char REJ[5] = {FLAG, A, C_REJ, A^C_REJ, FLAG};
-//unsigned char DISC[5] = {FLAG, A, C_DISC, A^C_DISC, FLAG};
 unsigned char DISC[5] = {FLAG, A_DISC, C_DISC, A_DISC^C_DISC, FLAG};
-
 unsigned char RR_0[5] = {FLAG, A, C_RR_0, A^C_RR_0, FLAG};
 unsigned char RR_1[5] = {FLAG, A, C_RR_1, A^C_RR_1, FLAG};
 unsigned char REJ_0[5] = {FLAG, A, C_REJ_0, A^C_REJ_0, FLAG};
@@ -654,17 +650,18 @@ int main(int argc, char** argv)
 
 	int bytes_read, bytes_total, seq_nr = 0;
 	unsigned char* buffer = malloc(pckgsize * sizeof(char));
-	int read_value = 0;
+	int read_value = 1;
 	int k=1, offset=0, exitc=0, n=0, n_counter=1;
 	printf("\nSeq antes While: %d\n", Seq);
 	while(1) {
+		printf("Read_value: %d\n", read_value);
 		printf("Trama n: %d \n", k);
 		if(read_value>0){
 			bytes_read = fread(buffer, sizeof(char), pckgsize, file);
 			offset += bytes_read;
 			fseek(file, offset, SEEK_SET);
 			for(n=0; n < bytes_read; n++) {
-				//printf("Buffer: %x\n", buffer[n]);
+				printf("Buffer: %x\n", buffer[n]);
 			}	
 			printf("Bytes read: %d\n", bytes_read);
 			if(bytes_read <= 0) break;
