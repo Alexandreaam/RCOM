@@ -136,7 +136,7 @@ int main(int argc, char** argv)
 	int k=0,nseq=1;
 	//RECEIVE DATA
 	while(1){
-		printf("\nTrama n %d\n", ++k);
+		printf("\nTrama n: %d\n", ++k);
 		int llreadVal = llread(fd,&temp,&size);
 		if(llreadVal==0){
 			for(i=4;i<size;i++){
@@ -153,7 +153,7 @@ int main(int argc, char** argv)
 		  //tcflush(fd, TCIOFLUSH);
 		  printf("Error no read");
 		} else if(llreadVal==2){
-			printf("The file was sucessfully transfered!\n");
+			printf("The file was sucessfully transfered!\n\n");
 			break;
 		}
 	}

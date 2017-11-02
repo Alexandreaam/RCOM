@@ -8,7 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define BAUDRATE B38400
+#define BAUDRATE B115200
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
@@ -265,9 +265,9 @@ int llopen(int fd, int res){
 	}
 
 	printf("Pedido de ligacao recebido:\n");
-	for(j=0; j<5; j++){
+	/*for(j=0; j<5; j++){
 		printf("%x\n", aux[j]);
-	}	
+	}	*/
 
 	int i = write(fd,UA,5);
 	printf("Enviados %d bytes de ACK\n", i);
@@ -301,8 +301,8 @@ int llread(int fd, char *data, int* size){
 		//printf("\n");	
 		length++;
 	}
-	printf("state %d\n", state);
-	/*for(j=0;j<length;j++){
+	/*printf("state %d\n", state);
+	for(j=0;j<length;j++){
 		printf("value %x\n", aux[j]);
 	}	*/
 
@@ -310,12 +310,12 @@ int llread(int fd, char *data, int* size){
 
 	if(aux[2]==C_0 && Seq==1){
 		write(fd,RR_1,5);
-		printf("Emissor failed to receive previous Ack. ReSent RR_1: \n");
+		printf("Emissor failed to receive previous Ack. ReSent RR_1 \n");
 		return 3;
 	}
 	else if(aux[2]==C_1 && Seq==0){
 		write(fd,RR_0,5);
-		printf("Emissor failed to receive previous Ack. ReSent RR_0: \n");
+		printf("Emissor failed to receive previous Ack. ReSent RR_0 \n");
 		return 3;
 	}
 
@@ -350,44 +350,44 @@ int llread(int fd, char *data, int* size){
             break;
         BCC2^=aux[j];
    }
-	printf("bcc %x\n",BCC2);
+	//printf("bcc %x\n",BCC2);
 	
 		
    if(BCC2 == aux[length-2]) {
-		if(aux[4]==0x03 && state==5){
-			printf("Receive trama (I) end\n");
-			return 2;
-		}
 
 		for(j=4;j<length-2;j++){
 			data[j-4]=aux[j];	
 		}
 		*size = j-4;
-			printf("Recebi : %x \n", data[0]);
-			if(data[0]!=0x01)
-				return 0;
+			//printf("Recebi : %x \n", data[0]);
+			/*if(data[0]!=0x01)
+				return 0;*/
 			
-			printf("Recebi : %d bytes\n", *size-4);
+			printf("Recebi : %d bytes de dados\n", *size-4);
 			printf("Recebi C: %x\n", aux[2]);
 			if(aux[2]==C_0 && Seq==0){
         			write(fd,RR_1,5);
-				printf("Sent RR_1: \n");
+				printf("Sent RR_1 \n");
 			}
 			else if(aux[2]==C_1 && Seq==1){
 				write(fd,RR_0,5);
-				printf("Sent RR_0: \n");
+				printf("Sent RR_0 \n");
 			}
 	   		Seq = 1 - Seq;
+			if(aux[4]==0x03 && state==5){
+				printf("Receive trama I END \n\n");
+				return 2;
+			}
     }
     else {
-        printf("Error BBC2: \n");
+        printf("Error BBC2 \n");
 		if(Seq==1){
 				write(fd,REJ_1,5);
-				printf("Sent REJ_1: \n");
+				printf("Sent REJ_1 \n");
 		}
 		else if(Seq==0){
 			write(fd,REJ_0,5);
-			printf("Sent REJ_0: \n");
+			printf("Sent REJ_0 \n");
 		}
 		return -1;
     }
@@ -406,14 +406,14 @@ int llclose(int fd){
 
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
-		printf("%x\n", receive[0]);
+		//printf("%x\n", receive[0]);
 		STOP = stateMachineRe(aux, receive[0], &state);
 		aux[length]=receive[0];
 		length++;
 	}
 	
 	if(state==6){
-		printf("Sent DISC: \n");
+		printf("Sent DISC \n\n");
 		int bytes = write(fd,DISC,5);
 		state = 0;
 	}
@@ -421,14 +421,14 @@ int llclose(int fd){
 	STOP = FALSE;
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
-		printf("%x\n", receive[0]);
+		//printf("%x\n", receive[0]);
 		STOP = stateMachine(aux, receive[0], &state);
 		aux[length]=receive[0];
 		length++;
 	}
 
 	if(state==8){
-		printf("Connection terminated.\n");
+		printf("Connection terminated.\n\n");
 		return 1;
 	}
 	return -1;
