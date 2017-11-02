@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 
-#define BAUDRATE B38400
+#define BAUDRATE B115200
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
@@ -250,7 +250,7 @@ int tramastf (char* trama, int step, char stf) {
 	}
 
 	trama[step] = stf;
-	printf("Sucesso stuffing\n");
+	//printf("Sucesso stuffing\n");
 	return 0;
 }
 
@@ -261,14 +261,14 @@ int trama_append(char *trama, int step, char *buf, int buffer_length) {
 		trama[step+i] = buf[i];
 	}
 
-	printf("Appended trama\n\n");
+	//printf("Appended trama\n\n");
 
 	return 0;
 }
 int llwrite(int fd, unsigned char* buffer, int length){
     int i, j=4, FLAGPOS=0;
 	for(i=0; i < length; i++) {
-		//printf("Buffer Write %d: %x\n", i, buffer[i]);
+	//printf("Buffer Write %d: %x\n", i, buffer[i]);
 	}
     unsigned char trama[255];
     trama[0] = FLAG;
@@ -291,13 +291,13 @@ int llwrite(int fd, unsigned char* buffer, int length){
     trama[length+5] = FLAG;
 
 	/*for(i=0; i < length+6; i++) {
-		printf("Trama_check: %x\n", trama[i]);
+	printf("Trama_check: %x\n", trama[i]);
 	}*/
 
 	trama_append(trama, 4, buffer, length);
 
 	for(i=0; i < length+6; i++) {
-		//printf("New Trama_check: %x\n", trama[i]);
+	//printf("New Trama_check: %x\n", trama[i]);
 	}
 
     FLAGPOS = length+5;
@@ -352,6 +352,7 @@ int llopen(int fd,int res){
 
 	printf("Waiting for UA...\n");
 	STOP = FALSE;
+	alarm(3);
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
 		//printf("\nRead n%d\nreceive = %x\n", increm, receive[0]);
@@ -402,20 +403,10 @@ int llread(int fd, char * buffer)
     if(state == 14) {
 		if(aux[2]==C_RR_0){
 		int j=0;
-	  /*  printf("RECEIVED RR_0: ");
-	    while(j < 5) {
-		    printf("%x", aux[j]);
-		    j++;
-	    }*/
 		return 1;
 }
 		else if(aux[2]==C_RR_1){
 		int j=0;
-	   /* printf("RECEIVED RR_1: ");
-	    while(j < 5) {
-		    printf("%x", aux[j]);
-		    j++;
-	    }*/
 		return 2;
 }
 	    
@@ -423,20 +414,10 @@ int llread(int fd, char * buffer)
     else if(state == 17) {
 		if(aux[2]==C_REJ_0){
 		int j=0;
-      /*  printf("RECEIVED REJ_0: ");
-        while(j < 5) {
-            printf("%x", aux[j]);
-            j++;
-        }*/
 		return -1;
 }
 		if(aux[2]==C_REJ_1){
         int j=0;
-       /* printf("RECEIVED REJ_1: ");
-        while(j < 5) {
-            printf("%x", aux[j]);
-            j++;
-        }*/
 		return -2;
 		}
     }
@@ -460,7 +441,7 @@ int llclose(int fd) {
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
 
-		printf("\nRead DISC n%d\nreceive = %x\n", increm, receive[0]);
+		//printf("\nRead DISC n%d\nreceive = %x\n", increm, receive[0]);
 
 		STOP = stateMachine(aux, receive[0], &state);
 
@@ -472,7 +453,7 @@ int llclose(int fd) {
 	}
 
 	i = write(fd, UA, 5);
-	printf("\nSent UA: %d bytes\n", i);
+	printf("\nSent UA: %d bytes\n\n", i);
 
 	return 0;
 }

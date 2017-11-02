@@ -12,7 +12,7 @@
 
 int sendCtrlPckg(int fd, int ctrl_field, char* filepath, int filesize) {
 	int i, j=3;	
-	unsigned char file_size[16] = {};
+	unsigned char file_size[16] = {}, buffer[255];
 	snprintf(file_size, 20000, "%d", filesize);
 	
 	printf("Filepath: %s\nFilepath size: %d\nFilesize: %d\n", filepath, strlen(filepath), strlen(file_size));
@@ -44,7 +44,13 @@ int sendCtrlPckg(int fd, int ctrl_field, char* filepath, int filesize) {
 		printf("Failed to write control package\n");
 		return -1;
 	}
-	printf("Sent Control Package");
+	printf("Sent Control Package \n");
+
+	int llreadval=llread(fd, buffer);
+	if(llreadval<0){
+		return -1;	
+	}
+
 	return 0;
 }
 
@@ -166,6 +172,7 @@ int main(int argc, char** argv)
 	char* filepath = argv[2];
 	struct stat st;
 	int filesize;
+	int ctrlpckg_value = 0;
 	if (stat(filepath, &st) == 0)
 		filesize = st.st_size;
 	else {
@@ -173,13 +180,26 @@ int main(int argc, char** argv)
 		return -1;
 	}
 	printf("GIF Filesize: %d\n", filesize);
-
-	int ctrlpckg_value = sendCtrlPckg(fd, 2, filepath, filesize);
-	if(ctrlpckg_value != 0) {
-		printf("Failed sending START control package\n");
+	alarm(3);
+	while(1){
+		ctrlpckg_value = sendCtrlPckg(fd, 2, filepath, filesize);
+		if(ctrlpckg_value < 0) {
+			flag_alarm = 0;
+			printf("Disparou alarme e re-enviei control package (%d)\n", alarm_counter);
+			alarm(3);
+		}
+		else{
+			flag_alarm = 0;
+			alarm_counter = 0;
+			alarm(0);
+			break;
+		}
+		if(alarm_counter==4){
+		printf("Error sending control package\n");
 		return -1;
+		}		
 	}
-
+	Seq = 1 -Seq;
 	/*
 	 * CTRL PACKAGE SENT && SEND DATA PACKAGE
 	 */
@@ -190,17 +210,16 @@ int main(int argc, char** argv)
 	unsigned char* buffer = malloc(pckgsize * sizeof(char));
 	int read_value = 1;
 	int k=1, offset=0, exitc=0, n=0, n_counter=1;
-	printf("\nSeq antes While: %d\n", Seq);
+	//printf("\nSeq antes While: %d\n", Seq);
 	while(1) {
-		printf("Read_value: %d\n", read_value);
 		printf("Trama n: %d \n", k);
 		if(read_value>0){
 			bytes_read = fread(buffer, sizeof(char), pckgsize, file);
 			offset += bytes_read;
 			fseek(file, offset, SEEK_SET);
-			for(n=0; n < bytes_read; n++) {
-				//printf("Buffer: %x\n", buffer[n]);
-			}	
+			/*for(n=0; n < bytes_read; n++) {
+				printf("Buffer: %x\n", buffer[n]);
+			}*/	
 			printf("Bytes read: %d\n", bytes_read);
 			if(bytes_read <= 0) break;
 		}
@@ -211,7 +230,6 @@ int main(int argc, char** argv)
 			n_counter=1;
 		}
 		int datapckg_value = sendDataPckg(fd, n_counter, buffer, bytes_read);
-		n_counter++; 
 		int dp;		
 		/*printf("Trama enviada: ");
 		for(dp=0; dp < bytes_read; dp++) {
@@ -225,33 +243,21 @@ int main(int argc, char** argv)
 			printf("Received RR_0\n");
 			k++;
 			alarm_counter=0;		
-			Seq = 0;		
+			Seq = 0;
+			n_counter++; 		
 		}
 		else if(read_value == 2 && Seq == 0) { //recebeu RR_1
 			printf("Received RR_1\n");
 			k++;	
 			alarm_counter=0;	
-			Seq = 1;	
+			Seq = 1;
+			n_counter++; 	
 		}
 		else if(read_value < 0 && read_value !=-3) { //recebeu REJ_0 ou REJ_1	
 			printf("Received REJ_0 ou REJ_1\n");
 			k++;
 			alarm_counter=0;				
 		}
-		/*else if(read_value == -1 && Seq == 1) { //recebeu REJ_0	
-			printf("Received REJ_0\n");
-			k++;
-			alarm_counter=0;
-			Seq = 0;	
-			read_value = 1;			
-		}
-		else if(read_value == -2 && Seq == 0) { //recebeu REJ_1
-			printf("Received REJ_1\n");
-			k++;
-			alarm_counter=0;	
-			Seq = 1;	
-			read_value = 1;					
-		}*/
 		else if(read_value == -3){
 			flag_alarm = 0;
 			printf("Disparou alarme e re-enviei (%d)\n", alarm_counter);
@@ -261,10 +267,24 @@ int main(int argc, char** argv)
 		if(alarm_counter == 4) return 0;
 	}
 	
-	ctrlpckg_value = sendCtrlPckg(fd, 3, filepath, filesize);
-	if(ctrlpckg_value != 0) {
-		printf("Failed sending START control package\n");
+	alarm(3);
+	while(1){
+		ctrlpckg_value = sendCtrlPckg(fd, 3, filepath, filesize);
+		if(ctrlpckg_value < 0) {
+			flag_alarm = 0;
+			printf("Disparou alarme e re-enviei control package (%d)\n", alarm_counter);
+			alarm(3);
+		}
+		else{
+			flag_alarm = 0;
+			alarm_counter = 0;
+			alarm(0);
+			break;
+		}
+		if(alarm_counter==4){
+		printf("Error sending control package\n");
 		return -1;
+		}		
 	}
 
 
@@ -291,8 +311,6 @@ int main(int argc, char** argv)
 			break;
 		}	
 	}
-	//llclose(fd);
-
     close(fd);
     return 0;
 }
