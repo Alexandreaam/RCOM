@@ -45,8 +45,6 @@ int Seq=0, alarm_counter=0, flag_alarm = 0;
 
 
 int stateMachine(char *aux, unsigned char value, int *state){
-	//printf("State: %d\n", *state);
-	//printf("Value: %x\n", value);
 	switch(*state){
 		case 0:
 		if(value == FLAG){
@@ -250,26 +248,18 @@ int tramastf (char* trama, int step, char stf) {
 	}
 
 	trama[step] = stf;
-	//printf("Sucesso stuffing\n");
 	return 0;
 }
 
 int trama_append(char *trama, int step, char *buf, int buffer_length) {
 	int i=0;	
-
 	for (i=0; i < buffer_length; i++) {
 		trama[step+i] = buf[i];
 	}
-
-	//printf("Appended trama\n\n");
-
 	return 0;
 }
 int llwrite(int fd, unsigned char* buffer, int length){
     int i, j=4, FLAGPOS=0;
-	for(i=0; i < length; i++) {
-	//printf("Buffer Write %d: %x\n", i, buffer[i]);
-	}
     unsigned char trama[255];
     trama[0] = FLAG;
     trama[1] = A;
@@ -286,20 +276,9 @@ int llwrite(int fd, unsigned char* buffer, int length){
     {
    	 BCC2^=buffer[i];
     }
-	//printf("BCC2: %x", BCC2);
     trama[length+4] = BCC2;
     trama[length+5] = FLAG;
-
-	/*for(i=0; i < length+6; i++) {
-	printf("Trama_check: %x\n", trama[i]);
-	}*/
-
 	trama_append(trama, 4, buffer, length);
-
-	for(i=0; i < length+6; i++) {
-	//printf("New Trama_check: %x\n", trama[i]);
-	}
-
     FLAGPOS = length+5;
     while(1)
     {
@@ -317,13 +296,10 @@ int llwrite(int fd, unsigned char* buffer, int length){
         j++;
     }
 
-	//printf("TRAMA SIZE: %d\n", sizeof(trama)*sizeof(char));
-
     int lli = write(fd, trama, FLAGPOS+1);
 
     int inc=0;
     while(inc < FLAGPOS+1) {
-    		//printf("%x\n", trama[inc]);
     		inc++;
     	}
     
@@ -355,7 +331,6 @@ int llopen(int fd,int res){
 	alarm(3);
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
-		//printf("\nRead n%d\nreceive = %x\n", increm, receive[0]);
 		STOP = stateMachine(aux, receive[0], &state);
 		if(flag_alarm == 1){
 			return -3;
@@ -385,13 +360,9 @@ int llread(int fd, char * buffer)
 	int llstate=0, llincrem=0, state=0, res=0;
 	unsigned char aux[5];
 	unsigned char receive[5];
-	printf("testar received\n");
 	STOP = FALSE;
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
-
-		//printf("\nLLRead n%d\nreceive = %x\n", llincrem, receive[0]);
-		
 		STOP = stateMachine(aux, receive[0], &state);
 		if(flag_alarm == 1){
 			return -3;
@@ -432,7 +403,7 @@ int llclose(int fd) {
 	int state=0, increm=0;
 	int res=0;
 	int i = write(fd, DISC, 5);
-	printf("\nSent DISC: %d bytes\n", i);
+	printf("Sent DISC: %d bytes\n", i);
 
 	unsigned char aux[5];
 	unsigned char receive[5];
@@ -440,11 +411,7 @@ int llclose(int fd) {
 	alarm(3);
 	while(STOP == FALSE) {
 		res = read(fd,receive,1);
-
-		//printf("\nRead DISC n%d\nreceive = %x\n", increm, receive[0]);
-
 		STOP = stateMachine(aux, receive[0], &state);
-
 		if(flag_alarm == 1){
 			return -3;
 		}		

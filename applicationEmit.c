@@ -146,7 +146,6 @@ int main(int argc, char** argv)
 		} 
 		else if(llopenval==-3 && alarm_counter!=4){
 			flag_alarm = 0;
-			//i = write(fd, SET, 5);
 			printf("Disparou alarme e re-enviei (%d)\n", alarm_counter);
 			alarm(3);
 		} 
@@ -210,17 +209,13 @@ int main(int argc, char** argv)
 	unsigned char* buffer = malloc(pckgsize * sizeof(char));
 	int read_value = 1;
 	int k=1, offset=0, exitc=0, n=0, n_counter=1;
-	//printf("\nSeq antes While: %d\n", Seq);
 	while(1) {
 		printf("Trama n: %d \n", k);
 		if(read_value>0){
 			bytes_read = fread(buffer, sizeof(char), pckgsize, file);
 			offset += bytes_read;
 			fseek(file, offset, SEEK_SET);
-			/*for(n=0; n < bytes_read; n++) {
-				printf("Buffer: %x\n", buffer[n]);
-			}*/	
-			printf("Bytes read: %d\n", bytes_read);
+			printf("Bytes of data read from file: %d\n", bytes_read);
 			if(bytes_read <= 0) break;
 		}
 		
@@ -231,10 +226,6 @@ int main(int argc, char** argv)
 		}
 		int datapckg_value = sendDataPckg(fd, n_counter, buffer, bytes_read);
 		int dp;		
-		/*printf("Trama enviada: ");
-		for(dp=0; dp < bytes_read; dp++) {
-			printf("%c", buffer[dp]);
-		}*/
 		printf("\n");
 
 		char* temp_buf;
